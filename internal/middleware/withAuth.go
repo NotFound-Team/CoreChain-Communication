@@ -46,10 +46,10 @@ func WithAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		userID, ok := claims["user_id"].(string)
+		userID, ok := claims["_id"].(string)
 		if !ok {
 			// Handle case where user_id might be float64 (common in JSON decoding)
-			if fID, ok := claims["user_id"].(float64); ok {
+			if fID, ok := claims["_id"].(float64); ok {
 				userID = fmt.Sprintf("%.0f", fID)
 			} else {
 				http.Error(w, "Unauthorized: Invalid user ID in token", http.StatusUnauthorized)

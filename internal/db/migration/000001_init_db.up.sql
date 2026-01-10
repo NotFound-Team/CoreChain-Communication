@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS conversations (
     updated_at TIMESTAMP NOT NULL DEFAULT now() 
 );
 
-CREATE INDEX idx_conversations_last_msg ON conversations(last_message_at DESC);
-CREATE INDEX idx_conversations_is_group ON conversations(is_group);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_msg ON conversations(last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_is_group ON conversations(is_group);
 
 CREATE TABLE IF NOT EXISTS participants (
     conversation_id BIGINT NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS participants (
     CONSTRAINT fk_participant_conversation FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
-CREATE INDEX idx_participants_user ON participants(user_id);
+CREATE INDEX IF NOT EXISTS idx_participants_user ON participants(user_id);
 
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -46,5 +46,5 @@ CREATE TABLE IF NOT EXISTS messages (
     CONSTRAINT fk_msg_conversation FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
-CREATE INDEX idx_messages_conversation_created ON messages(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON messages(conversation_id, created_at DESC);
 

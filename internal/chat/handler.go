@@ -51,7 +51,7 @@ func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := fmt.Sprintf("%v", claims["user_id"])
+	userID := fmt.Sprintf("%v", claims["_id"])
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -105,6 +105,7 @@ func (h *Handler) HandleGetOrCreatePrivateConv(w http.ResponseWriter, r *http.Re
 
 // GET /conversations
 func (h *Handler) HandleListConversations(w http.ResponseWriter, r *http.Request) {
+	log.Println("handle list conversation")
 	userID := r.Context().Value("user_id").(string)
 
 	// Parse query params (limit, offset)
@@ -112,7 +113,9 @@ func (h *Handler) HandleListConversations(w http.ResponseWriter, r *http.Request
 	offset := parseQueryInt(r, "offset", 0)
 
 	convs, err := h.service.ListConversations(r.Context(), userID, int32(limit), int32(offset))
+	log.Println("conversations: ", convs)
 	if err != nil {
+		log.Printf("error: %v\n", err)
 		http.Error(w, "Failed to fetch conversations", http.StatusInternalServerError)
 		return
 	}
