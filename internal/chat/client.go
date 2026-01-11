@@ -48,8 +48,9 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
-
+		log.Println("server received message: ", string(message))
 		c.Hub.broadcast <- message
+		log.Println("client sent message to hub: ", string(message))
 	}
 }
 

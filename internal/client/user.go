@@ -5,15 +5,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
 )
 
 type UserInfo struct {
-	ID       string
-	FullName string
-	Avatar   string
+	ID     string `json:"_id"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar,omitempty"`
+}
+
+type UserResponse struct {
+	StatusCode int      `json:"statusCode"`
+	Message    string   `json:"message"`
+	Data       UserInfo `json:"data"`
 }
 
 type UserClient struct {
@@ -92,31 +99,27 @@ func (c *UserClient) EnrichUsers(ctx context.Context, ids []string) (map[string]
 }
 
 func (c *UserClient) GetSingleUser(ctx context.Context, id string) (UserInfo, error) {
-	url := fmt.Sprintf("%s/user/%s", c.BaseURL, id)
+	url := fmt.Sprintf("%s/users/public/%s", c.BaseURL, id)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return UserInfo{}, fmt.Errorf("failed to create request: %w", err)
+		return UserInfo{}, err
 	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return UserInfo{}, fmt.Errorf("failed to call user service: %w", err)
+		return UserInfo{}, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return UserInfo{}, fmt.Errorf("user not found: %s", id)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return UserInfo{}, fmt.Errorf("user service returned error: %d", resp.StatusCode)
+		return UserInfo{}, fmt.Errorf("user service error: %d", resp.StatusCode)
 	}
 
-	var info UserInfo
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return UserInfo{}, fmt.Errorf("failed to decode user response: %w", err)
+	var wrapper UserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+		return UserInfo{}, fmt.Errorf("decode error: %w", err)
 	}
-
-	return info, nil
+	log.Println("user info:", wrapper.Data)
+	return wrapper.Data, nil
 }
-

@@ -26,7 +26,6 @@ func InitKafka() {
 		cfg := config.Get()
 		w := &kafka.Writer{
 			Addr:         kafka.TCP(cfg.KafkaBroker),
-			Topic:        cfg.KafkaTopicPush,
 			Balancer:     &kafka.LeastBytes{},
 			RequiredAcks: kafka.RequireOne,
 			Async:        true,

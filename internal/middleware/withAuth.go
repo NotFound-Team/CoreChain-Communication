@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 
 func WithAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("incoming request", r.URL.Path)
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)

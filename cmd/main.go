@@ -7,9 +7,11 @@ import (
 
 	"corechain-communication/internal/broker"
 	"corechain-communication/internal/chat"
+	"corechain-communication/internal/client"
 	"corechain-communication/internal/config"
 	"corechain-communication/internal/db"
 	"corechain-communication/internal/middleware"
+	"corechain-communication/internal/storage"
 	"corechain-communication/internal/worker"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,8 +30,11 @@ func main() {
 	}
 	defer pool.Close()
 
+	storage.InitMinio()
+
 	queries := db.New(pool)
-	chatService := chat.NewChatService(queries, pool)
+	userClient := client.NewUserClient(cfg.UserServiceURL)
+	chatService := chat.NewChatService(queries, pool, userClient)
 	hub := chat.NewHub(queries)
 
 	db.RunMigration(cfg.MigrationURL, cfg.DatabaseURL)
@@ -44,7 +49,9 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/ws", chatHandler.ServeWS)
+	mux.HandleFunc("/upload", middleware.WithAuth(storage.UploadHandler))
 	mux.HandleFunc("/conversations/private", middleware.WithAuth(chatHandler.HandleGetOrCreatePrivateConv))
+	mux.HandleFunc("/conversations/detail", middleware.WithAuth(chatHandler.HandleGetConversation))
 	mux.HandleFunc("/conversations", middleware.WithAuth(chatHandler.HandleListConversations))
 	mux.HandleFunc("/messages", middleware.WithAuth(chatHandler.HandleGetMessages))
 

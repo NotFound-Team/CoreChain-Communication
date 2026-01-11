@@ -5,31 +5,39 @@ import (
 	"corechain-communication/internal/broker"
 	"corechain-communication/internal/config"
 	"corechain-communication/internal/db"
+	"corechain-communication/internal/storage"
 	"encoding/json"
 	"log"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type Message struct {
+	ID             int64  `json:"id,omitempty"`
+	TempID         string `json:"temp_id,omitempty"`
 	Type           string `json:"type"`
-	ConversationID string `json:"conversation_id"`
+	ConversationID int64  `json:"conversation_id"`
 	SenderID       string `json:"sender_id"`
 	Content        string `json:"content"`
+
+	FileName string `json:"file_name,omitempty"`
+	FileID   string `json:"file_id,omitempty"`
+	FilePath string `json:"file_path,omitempty"`
+	FileURL  string `json:"file_url,omitempty"`
+	FileType string `json:"file_type,omitempty"`
+	FileSize int64  `json:"file_size,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Hub struct {
-	clients map[string]*Client
-
-	register chan *Client
-
+	clients    map[string]*Client
+	register   chan *Client
 	unregister chan *Client
-
-	broadcast chan []byte
-
-	mu sync.RWMutex
-
-	q *db.Queries
+	broadcast  chan []byte
+	mu         sync.RWMutex
+	q          *db.Queries
 }
 
 func NewHub(q *db.Queries) *Hub {
@@ -70,28 +78,46 @@ func (h *Hub) handleMessageDelivery(rawData []byte) {
 	ctx := context.Background()
 	var msg Message
 	if err := json.Unmarshal(rawData, &msg); err != nil {
+		log.Println("failed to unmarshal message: ", err)
 		return
 	}
 
-	memberIDs, err := db.GetCachedParticipants(ctx, msg.ConversationID)
+	kafkaKey := strconv.FormatInt(msg.ConversationID, 10)
+	err := broker.Get().PushEvent(ctx, config.Get().KafkaTopicPersistence, kafkaKey, msg)
+	if err != nil {
+		log.Printf("Failed to push event persistence for Conv %d: %v", msg.ConversationID, err)
+	} else {
+		log.Printf("Pushed message to Kafka persistence: %s", msg.Content)
+	}
+
+	if msg.Type == "file" && msg.FilePath != "" {
+		signedURL, err := storage.GetPresignedURL(msg.FilePath)
+		if err == nil {
+			msg.FileURL = signedURL
+			newRawData, err := json.Marshal(msg)
+			if err == nil {
+				rawData = newRawData
+			}
+		} else {
+			log.Printf("Error signing URL in Hub for file %s: %v", msg.FilePath, err)
+		}
+	}
+
+	convIDStr := strconv.FormatInt(msg.ConversationID, 10)
+	memberIDs, err := db.GetCachedParticipants(ctx, convIDStr)
 
 	if err != nil || len(memberIDs) == 0 {
-		convIDInt, _ := strconv.ParseInt(msg.ConversationID, 10, 64)
-
-		rows, err := h.q.ListParticipantsByConversation(ctx, convIDInt)
+		log.Println("Cache miss for participants, fetching from DB...")
+		rows, err := h.q.ListParticipantsByConversation(ctx, msg.ConversationID)
 		if err == nil {
 			for _, r := range rows {
 				memberIDs = append(memberIDs, r.UserID)
 			}
-			db.CacheParticipants(ctx, msg.ConversationID, memberIDs)
+			db.CacheParticipants(ctx, convIDStr, memberIDs)
 		}
 	}
 
 	for _, memberID := range memberIDs {
-		if memberID == msg.SenderID {
-			continue
-		}
-
 		h.mu.RLock()
 		client, online := h.clients[memberID]
 		h.mu.RUnlock()
@@ -99,14 +125,18 @@ func (h *Hub) handleMessageDelivery(rawData []byte) {
 		if online {
 			select {
 			case client.Send <- rawData:
+				log.Printf("Delivered message to %s (Online)", memberID)
 			default:
 				h.unregister <- client
-				h.sendToPushTopic(ctx, memberID, msg)
+				if memberID != msg.SenderID {
+					h.sendToPushTopic(ctx, memberID, msg)
+				}
 			}
 		} else {
-			h.sendToPushTopic(ctx, memberID, msg)
+			if memberID != msg.SenderID {
+				h.sendToPushTopic(ctx, memberID, msg)
+			}
 		}
-		_ = broker.Get().PushEvent(ctx, config.Get().KafkaTopicPersistence, msg.ConversationID, msg)
 	}
 }
 
@@ -115,6 +145,7 @@ func (h *Hub) sendToPushTopic(ctx context.Context, userID string, msg Message) {
 		"receiver_id": userID,
 		"content":     msg.Content,
 		"type":        msg.Type,
+		"sender_id":   msg.SenderID,
 	}
 	_ = broker.Get().PushEvent(ctx, config.Get().KafkaTopicNotification, userID, pushPayload)
 }

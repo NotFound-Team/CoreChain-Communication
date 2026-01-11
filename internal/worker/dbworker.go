@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"strconv"
 
 	"corechain-communication/internal/chat"
 	"corechain-communication/internal/config"
@@ -19,8 +18,8 @@ func StartDBWorker(cfg *config.Config, q *db.Queries) {
 		Brokers:  []string{cfg.KafkaBroker},
 		Topic:    cfg.KafkaTopicPersistence,
 		GroupID:  cfg.KafkaDBWorkerConsumerGroupID,
-		MinBytes: 10e3,
-		MaxBytes: 10e6,
+		MinBytes: 10e3, // 10KB
+		MaxBytes: 10e6, // 10MB
 	})
 	defer reader.Close()
 
@@ -39,22 +38,27 @@ func StartDBWorker(cfg *config.Config, q *db.Queries) {
 			continue
 		}
 
-		convID, _ := strconv.ParseInt(msg.ConversationID, 10, 64)
-
 		params := db.CreateMessageParams{
-			ConversationID: convID,
+			ConversationID: msg.ConversationID,
 			SenderID:       msg.SenderID,
-			Content:        pgtype.Text{String: msg.Content, Valid: true},
+			Content:        pgtype.Text{String: msg.Content, Valid: msg.Content != ""},
 			Type:           pgtype.Text{String: msg.Type, Valid: true},
-			ReplyToID:      pgtype.Int8{Valid: false},
+
+			FileName: pgtype.Text{String: msg.FileName, Valid: msg.FileName != ""},
+			FilePath: pgtype.Text{String: msg.FilePath, Valid: msg.FilePath != ""},
+			FileType: pgtype.Text{String: msg.FileType, Valid: msg.FileType != ""},
+			FileSize: pgtype.Int8{Int64: msg.FileSize, Valid: msg.FileSize > 0},
+
+			ReplyToID: pgtype.Int8{Valid: false},
 		}
 
-		_, err = q.CreateMessage(context.Background(), params)
+		insertedMsg, err := q.CreateMessage(context.Background(), params)
 		if err != nil {
-			log.Printf("DB Save Error: %v", err)
+			log.Printf("DB Save Error (Conv %d, Sender %s): %v", msg.ConversationID, msg.SenderID, err)
 			continue
 		}
 
-		log.Printf("Persisted [%s] from %s to Conv %d", msg.Type, msg.SenderID, convID)
+		log.Printf("Successfully Persisted: ID=%d | Type=%s | From=%s | Conv=%d",
+			insertedMsg.ID, msg.Type, msg.SenderID, msg.ConversationID)
 	}
 }

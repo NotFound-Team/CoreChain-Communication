@@ -18,6 +18,11 @@ type Config struct {
 	KafkaTopicPersistence        string `mapstructure:"KAFKA_TOPIC_PERSISTENCE"`
 	KafkaTopicNotification       string `mapstructure:"KAFKA_TOPIC_NOTIFICATIONS"`
 	KafkaDBWorkerConsumerGroupID string `mapstructure:"KAFKA_DB_WORKER_CONSUMER_GROUP_ID"`
+	MinIOEndpoint                string `mapstructure:"MINIO_ENDPOINT"`
+	MinIOAccessKey               string `mapstructure:"MINIO_ACCESS_KEY"`
+	MinIOSecretKey               string `mapstructure:"MINIO_SECRET_KEY"`
+	MinIOBucketName              string `mapstructure:"MINIO_BUCKET_NAME"`
+	MinioPublicURL               string `mapstructure:"MINIO_PUBLIC_URL"`
 }
 
 var (

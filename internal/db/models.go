@@ -28,6 +28,11 @@ type Message struct {
 	ReplyToID      pgtype.Int8      `json:"reply_to_id"`
 	IsDeleted      pgtype.Bool      `json:"is_deleted"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
+	FileName       pgtype.Text      `json:"file_name"`
+	FileID         pgtype.Text      `json:"file_id"`
+	FilePath       pgtype.Text      `json:"file_path"`
+	FileType       pgtype.Text      `json:"file_type"`
+	FileSize       pgtype.Int8      `json:"file_size"`
 }
 
 type Participant struct {

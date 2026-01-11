@@ -70,10 +70,15 @@ INSERT INTO messages (
     sender_id, 
     content, 
     type, 
+    file_name, 
+    file_path, 
+    file_type, 
+    file_size,
     reply_to_id
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
+RETURNING id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at, file_name, file_id, file_path, file_type, file_size
 `
 
 type CreateMessageParams struct {
@@ -81,6 +86,10 @@ type CreateMessageParams struct {
 	SenderID       string      `json:"sender_id"`
 	Content        pgtype.Text `json:"content"`
 	Type           pgtype.Text `json:"type"`
+	FileName       pgtype.Text `json:"file_name"`
+	FilePath       pgtype.Text `json:"file_path"`
+	FileType       pgtype.Text `json:"file_type"`
+	FileSize       pgtype.Int8 `json:"file_size"`
 	ReplyToID      pgtype.Int8 `json:"reply_to_id"`
 }
 
@@ -90,6 +99,10 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.SenderID,
 		arg.Content,
 		arg.Type,
+		arg.FileName,
+		arg.FilePath,
+		arg.FileType,
+		arg.FileSize,
 		arg.ReplyToID,
 	)
 	var i Message
@@ -102,6 +115,11 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.ReplyToID,
 		&i.IsDeleted,
 		&i.CreatedAt,
+		&i.FileName,
+		&i.FileID,
+		&i.FilePath,
+		&i.FileType,
+		&i.FileSize,
 	)
 	return i, err
 }
@@ -128,21 +146,21 @@ func (q *Queries) GetConversationByID(ctx context.Context, id int64) (Conversati
 }
 
 const getMessagesByConversation = `-- name: GetMessagesByConversation :many
-SELECT id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at FROM messages
-WHERE conversation_id = $1 
-  AND created_at < $2
-ORDER BY created_at DESC
+SELECT id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at, file_name, file_id, file_path, file_type, file_size FROM messages
+WHERE conversation_id = $1
+AND ($2::bigint = 0 OR id < $2)
+ORDER BY id DESC
 LIMIT $3
 `
 
 type GetMessagesByConversationParams struct {
-	ConversationID int64            `json:"conversation_id"`
-	CreatedAt      pgtype.Timestamp `json:"created_at"`
-	Limit          int32            `json:"limit"`
+	ConversationID int64 `json:"conversation_id"`
+	BeforeID       int64 `json:"before_id"`
+	LimitCount     int32 `json:"limit_count"`
 }
 
 func (q *Queries) GetMessagesByConversation(ctx context.Context, arg GetMessagesByConversationParams) ([]Message, error) {
-	rows, err := q.db.Query(ctx, getMessagesByConversation, arg.ConversationID, arg.CreatedAt, arg.Limit)
+	rows, err := q.db.Query(ctx, getMessagesByConversation, arg.ConversationID, arg.BeforeID, arg.LimitCount)
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +177,11 @@ func (q *Queries) GetMessagesByConversation(ctx context.Context, arg GetMessages
 			&i.ReplyToID,
 			&i.IsDeleted,
 			&i.CreatedAt,
+			&i.FileName,
+			&i.FileID,
+			&i.FilePath,
+			&i.FileType,
+			&i.FileSize,
 		); err != nil {
 			return nil, err
 		}

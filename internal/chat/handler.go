@@ -100,7 +100,14 @@ func (h *Handler) HandleGetOrCreatePrivateConv(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	jsonResponse(w, map[string]int64{"conversation_id": convID})
+	convDetail, err := h.service.GetConversation(r.Context(), convID)
+	if err != nil {
+		log.Printf("Error getting conv: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	log.Println("conv detail: ", convDetail)
+	jsonResponse(w, convDetail)
 }
 
 // GET /conversations
@@ -139,13 +146,39 @@ func (h *Handler) HandleGetMessages(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, msgs)
 }
 
+// GET /conversations/detail?id=123
+func (h *Handler) HandleGetConversation(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "Missing id parameter", http.StatusBadRequest)
+		return
+	}
+
+	convID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid id parameter", http.StatusBadRequest)
+		return
+	}
+
+	convDetail, err := h.service.GetConversation(r.Context(), convID)
+	if err != nil {
+		log.Printf("Error fetching conversation detail: %v", err)
+		http.Error(w, "Failed to fetch conversation", http.StatusInternalServerError)
+		return
+	}
+
+	jsonResponse(w, convDetail)
+}
+
 // =======================
 // Helpers
 // =======================
 
 func jsonResponse(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	json.NewEncoder(w).Encode(map[string]any{
+		"data": data,
+	})
 }
 
 func parseQueryInt(r *http.Request, key string, defaultVal int) int {

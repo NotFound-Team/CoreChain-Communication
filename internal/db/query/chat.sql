@@ -53,17 +53,22 @@ INSERT INTO messages (
     sender_id, 
     content, 
     type, 
+    file_name, 
+    file_path, 
+    file_type, 
+    file_size,
     reply_to_id
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING *;
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
+RETURNING *;
 
 -- name: GetMessagesByConversation :many
 SELECT * FROM messages
-WHERE conversation_id = $1 
-  AND created_at < $2
-ORDER BY created_at DESC
-LIMIT $3;
+WHERE conversation_id = sqlc.arg('conversation_id')
+AND (sqlc.arg('before_id')::bigint = 0 OR id < sqlc.arg('before_id'))
+ORDER BY id DESC
+LIMIT sqlc.arg('limit_count');
 
 -- name: MarkMessageAsRead :exec
 UPDATE participants

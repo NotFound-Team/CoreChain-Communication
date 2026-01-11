@@ -36,29 +36,26 @@ services:
     image: confluentinc/cp-kafka:7.5.0
     container_name: chat_kafka
     ports:
-      - "29092:9092"
+      - "29092:29092"
     depends_on:
       - zookeeper
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,OUTSIDE://localhost:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-
-  # Kafka UI
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: chat_kafka_ui
     ports:
-      - "9000:8080" 
+      - "8585:8080" 
     environment:
       KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
 
@@ -70,10 +67,66 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+  
+  #  MINIO
+  minio:
+    image: minio/minio
+    container_name: chat_minio
+    ports:
+      - "9000:9000"       
+      - "9001:9001"       
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadminpassword
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+  
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadminpassword;
+      /usr/bin/mc mb myminio/chat-attachments;
+      /usr/bin/mc anonymous set public myminio/chat-attachments;
+      exit 0;
+      "
+
+  # --- Application ---
+  app:
+    image: chat_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+    environment:
+      SERVER_PORT: 8080
+      DATABASE_URL: postgres://postgres:password@postgres:5432/chat_db?sslmode=disable
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC_PUSH: push-notifications
+      USER_SERVICE_URL: https://corechain-server-deploy.onrender.com/api/v1
+      MIGRATION_URL: file://internal/db/migration
+      REDIS_ADDR: redis:6379
+      JWT_SECRET_KEY: JUSTRANDOMSECRET
+      KAFKA_TOPIC_PERSISTENCE: chat-persistence
+      KAFKA_TOPIC_NOTIFICATIONS: push-notifications
+      KAFKA_DB_WORKER_CONSUMER_GROUP_ID: storage-group
+    volumes:
+      - .:/app
+    command: ["./main"]
 
 volumes:
   postgres_data:
   redis_data:
+  minio_data:
 
 networks:
   default:
