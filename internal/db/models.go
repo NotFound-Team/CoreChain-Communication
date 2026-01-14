@@ -19,6 +19,24 @@ type Conversation struct {
 	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
 }
 
+type Meeting struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Description pgtype.Text        `json:"description"`
+	HostID      string             `json:"host_id"`
+	RoomName    string             `json:"room_name"`
+	MeetingKey  string             `json:"meeting_key"`
+	StartTime   pgtype.Timestamptz `json:"start_time"`
+	EndTime     pgtype.Timestamptz `json:"end_time"`
+	IsActive    pgtype.Bool        `json:"is_active"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type MeetingInvite struct {
+	MeetingID pgtype.UUID `json:"meeting_id"`
+	UserID    string      `json:"user_id"`
+}
+
 type Message struct {
 	ID             int64            `json:"id"`
 	ConversationID int64            `json:"conversation_id"`

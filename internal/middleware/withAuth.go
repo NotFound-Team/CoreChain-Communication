@@ -48,18 +48,24 @@ func WithAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		userID, ok := claims["_id"].(string)
-		if !ok {
-			// Handle case where user_id might be float64 (common in JSON decoding)
-			if fID, ok := claims["_id"].(float64); ok {
-				userID = fmt.Sprintf("%.0f", fID)
-			} else {
-				http.Error(w, "Unauthorized: Invalid user ID in token", http.StatusUnauthorized)
-				return
+		userID, _ := claims["_id"].(string)
+
+		userName, _ := claims["name"].(string)
+
+		roleName := ""
+		if roleMap, ok := claims["role"].(map[string]interface{}); ok {
+			if rName, ok := roleMap["name"].(string); ok {
+				roleName = rName
 			}
 		}
 
-		ctx := context.WithValue(r.Context(), "user_id", userID)
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, "user_id", userID)
+		ctx = context.WithValue(ctx, "user_name", userName)
+		ctx = context.WithValue(ctx, "user_role", roleName)
+		log.Println("user_id", userID)
+		log.Println("user_name", userName)
+		log.Println("user_role", roleName)
 		next(w, r.WithContext(ctx))
 	}
 }

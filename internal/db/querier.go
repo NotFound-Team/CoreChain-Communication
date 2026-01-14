@@ -6,22 +6,35 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	AddMeetingInvite(ctx context.Context, arg AddMeetingInviteParams) error
 	AddParticipant(ctx context.Context, arg AddParticipantParams) error
+	CheckJoinPermission(ctx context.Context, arg CheckJoinPermissionParams) (bool, error)
 	CreateConversation(ctx context.Context, arg CreateConversationParams) (Conversation, error)
+	CreateMeeting(ctx context.Context, arg CreateMeetingParams) (Meeting, error)
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
+	EndMeeting(ctx context.Context, arg EndMeetingParams) (Meeting, error)
+	GetActiveMeetingByKey(ctx context.Context, meetingKey string) (Meeting, error)
 	GetConversationByID(ctx context.Context, id int64) (Conversation, error)
+	GetMeetingByID(ctx context.Context, id pgtype.UUID) (Meeting, error)
+	GetMeetingByRoomName(ctx context.Context, roomName string) (Meeting, error)
+	GetMeetingInvites(ctx context.Context, meetingID pgtype.UUID) ([]string, error)
 	GetMessagesByConversation(ctx context.Context, arg GetMessagesByConversationParams) ([]Message, error)
 	GetPrivateConversation(ctx context.Context, arg GetPrivateConversationParams) (int64, error)
 	ListConversationsByUser(ctx context.Context, arg ListConversationsByUserParams) ([]ListConversationsByUserRow, error)
+	ListMeetingsForUser(ctx context.Context, userID string) ([]Meeting, error)
+	ListMyMeetings(ctx context.Context, userID string) ([]Meeting, error)
 	ListParticipantsByConversation(ctx context.Context, conversationID int64) ([]ListParticipantsByConversationRow, error)
 	MarkMessageAsRead(ctx context.Context, arg MarkMessageAsReadParams) error
 	RemoveParticipant(ctx context.Context, arg RemoveParticipantParams) error
 	UpdateConversationInfo(ctx context.Context, arg UpdateConversationInfoParams) error
 	UpdateConversationLastMessage(ctx context.Context, arg UpdateConversationLastMessageParams) error
 	UpdateLastReadMessage(ctx context.Context, arg UpdateLastReadMessageParams) error
+	UpdateMeetingStatus(ctx context.Context, arg UpdateMeetingStatusParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -95,6 +95,15 @@ services:
       exit 0;
       "
 
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    restart: always
+    network_mode: host 
+    volumes:
+      - ./livekit.yaml:/livekit.yaml
+    command: --config /livekit.yaml
+
   # --- Application ---
   app:
     image: chat_app

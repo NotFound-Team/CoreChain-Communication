@@ -23,6 +23,9 @@ type Config struct {
 	MinIOSecretKey               string `mapstructure:"MINIO_SECRET_KEY"`
 	MinIOBucketName              string `mapstructure:"MINIO_BUCKET_NAME"`
 	MinioPublicURL               string `mapstructure:"MINIO_PUBLIC_URL"`
+	LiveKitAPIKey                string `mapstructure:"LIVEKIT_API_KEY"`
+	LiveKitAPISecret             string `mapstructure:"LIVEKIT_API_SECRET"`
+	LiveKitURL                   string `mapstructure:"LIVEKIT_URL"`
 }
 
 var (

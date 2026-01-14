@@ -10,6 +10,7 @@ import (
 	"corechain-communication/internal/client"
 	"corechain-communication/internal/config"
 	"corechain-communication/internal/db"
+	"corechain-communication/internal/meeting"
 	"corechain-communication/internal/middleware"
 	"corechain-communication/internal/storage"
 	"corechain-communication/internal/worker"
@@ -31,29 +32,41 @@ func main() {
 	defer pool.Close()
 
 	storage.InitMinio()
-
-	queries := db.New(pool)
-	userClient := client.NewUserClient(cfg.UserServiceURL)
-	chatService := chat.NewChatService(queries, pool, userClient)
-	hub := chat.NewHub(queries)
-
 	db.RunMigration(cfg.MigrationURL, cfg.DatabaseURL)
 	db.InitRedis()
 	broker.InitKafka()
 	defer broker.Get().Close()
 
+	queries := db.New(pool)
+	hub := chat.NewHub(queries)
 	go hub.Run()
 	go worker.StartDBWorker(cfg, queries)
 
+	userClient := client.NewUserClient(cfg.UserServiceURL)
+	chatService := chat.NewChatService(queries, pool, userClient)
+
+	lkService := meeting.NewLiveKitService()
+	meetingService := meeting.NewMeetingService(pool, queries, lkService)
+
+	meetingHandler := meeting.NewMeetingHandler(meetingService)
 	chatHandler := chat.NewHandler(hub, chatService)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/ws", chatHandler.ServeWS)
+
 	mux.HandleFunc("/upload", middleware.WithAuth(storage.UploadHandler))
+
 	mux.HandleFunc("/conversations/private", middleware.WithAuth(chatHandler.HandleGetOrCreatePrivateConv))
 	mux.HandleFunc("/conversations/detail", middleware.WithAuth(chatHandler.HandleGetConversation))
 	mux.HandleFunc("/conversations", middleware.WithAuth(chatHandler.HandleListConversations))
+
 	mux.HandleFunc("/messages", middleware.WithAuth(chatHandler.HandleGetMessages))
+
+	mux.HandleFunc("/meetings/my", middleware.WithAuth(meetingHandler.ListMyMeetings))
+	mux.HandleFunc("/meetings/join", middleware.WithAuth(meetingHandler.JoinMeeting))
+	mux.HandleFunc("/meetings/end", middleware.WithAuth(meetingHandler.EndMeeting))
+	mux.HandleFunc("/meetings", middleware.WithAuth(meetingHandler.CreateMeeting))
 
 	handlerWithCORS := middleware.EnableCORS(mux)
 
