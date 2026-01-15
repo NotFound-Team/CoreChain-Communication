@@ -116,18 +116,6 @@ services:
       - postgres
       - kafka
       - redis
-    environment:
-      SERVER_PORT: 8080
-      DATABASE_URL: postgres://postgres:password@postgres:5432/chat_db?sslmode=disable
-      KAFKA_BROKER: kafka:9092
-      KAFKA_TOPIC_PUSH: push-notifications
-      USER_SERVICE_URL: https://corechain-server-deploy.onrender.com/api/v1
-      MIGRATION_URL: file://internal/db/migration
-      REDIS_ADDR: redis:6379
-      JWT_SECRET_KEY: JUSTRANDOMSECRET
-      KAFKA_TOPIC_PERSISTENCE: chat-persistence
-      KAFKA_TOPIC_NOTIFICATIONS: push-notifications
-      KAFKA_DB_WORKER_CONSUMER_GROUP_ID: storage-group
     volumes:
       - .:/app
     command: ["./main"]

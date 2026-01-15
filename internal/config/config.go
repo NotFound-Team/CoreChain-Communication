@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"sync"
 
 	"github.com/spf13/viper"
@@ -36,11 +37,17 @@ var (
 func LoadConfig() (*Config, error) {
 	var err error
 	once.Do(func() {
-		viper.SetConfigFile(".env")
+		viper.SetConfigName(".env")
+		viper.SetConfigType("env")
+		viper.AddConfigPath(".")
 		viper.AutomaticEnv()
 
 		if err = viper.ReadInConfig(); err != nil {
-			return
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				return
+			}
+			log.Println("No .env file found, loading from system environment")
+			err = nil
 		}
 
 		instance = &Config{}
