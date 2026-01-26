@@ -20,27 +20,37 @@ type MemberDetail struct {
 }
 
 type ConversationDetail struct {
-	ID        int64             `json:"id"`
-	Name      string            `json:"name,omitempty"`
-	Avatar    string            `json:"avatar,omitempty"`
-	IsGroup   bool              `json:"is_group"`
-	Members   []MemberDetail    `json:"members"`
-	Messages  []MessageResponse `json:"messages"`
-	CreatedAt pgtype.Timestamp  `json:"created_at"`
-	UpdatedAt pgtype.Timestamp  `json:"updated_at"`
+	ID                    int64             `json:"id"`
+	Name                  string            `json:"name,omitempty"`
+	Avatar                string            `json:"avatar,omitempty"`
+	IsGroup               bool              `json:"is_group"`
+	Members               []MemberDetail    `json:"members"`
+	Messages              []MessageResponse `json:"messages"`
+	LastMessageID         int64             `json:"last_message_id"`
+	LastMessageAt         pgtype.Timestamp  `json:"last_message_at"`
+	LastMessageContent    string            `json:"last_message_content"`
+	LastMessageSenderID   string            `json:"last_message_sender_id"`
+	LastMessageSenderName string            `json:"last_message_sender_name"`
+	LastMessageType       string            `json:"last_message_type"`
+	LastMessageFileName   string            `json:"last_message_file_name,omitempty"`
+	CreatedAt             pgtype.Timestamp  `json:"created_at"`
+	UpdatedAt             pgtype.Timestamp  `json:"updated_at"`
 }
 
 type ConversationSummary struct {
-	ID                  int64            `json:"id"`
-	Name                string           `json:"name"`
-	Avatar              string           `json:"avatar"`
-	IsGroup             bool             `json:"is_group"`
-	LastMessageID       int64            `json:"last_message_id"`
-	LastMessageAt       pgtype.Timestamp `json:"last_message_at"`
-	LastMessageContent  string           `json:"last_message_content"`
-	LastMessageSenderID string           `json:"last_message_sender_id"`
-	LastReadMessageID   int64            `json:"last_read_message_id"`
-	UnreadCount         int64            `json:"unread_count"`
+	ID                    int64            `json:"id"`
+	Name                  string           `json:"name"`
+	Avatar                string           `json:"avatar"`
+	IsGroup               bool             `json:"is_group"`
+	LastMessageID         int64            `json:"last_message_id"`
+	LastMessageAt         pgtype.Timestamp `json:"last_message_at"`
+	LastMessageContent    string           `json:"last_message_content"`
+	LastMessageSenderID   string           `json:"last_message_sender_id"`
+	LastMessageSenderName string           `json:"last_message_sender_name"`
+	LastMessageType       string           `json:"last_message_type"`
+	LastMessageFileName   string           `json:"last_message_file_name,omitempty"`
+	LastReadMessageID     int64            `json:"last_read_message_id"`
+	UnreadCount           int64            `json:"unread_count"`
 }
 
 type MessageResponse struct {
@@ -145,6 +155,15 @@ func (s *ChatService) ListConversations(ctx context.Context, userID string, limi
 	}
 
 	// 2. Enrich
+	// We also need the sender of the last message in each conversation
+	lastMsgSenderIDs := make([]string, 0)
+	for _, r := range rows {
+		if r.LastMessageSenderID.String != "" {
+			lastMsgSenderIDs = append(lastMsgSenderIDs, r.LastMessageSenderID.String)
+		}
+	}
+	userIDs = append(userIDs, lastMsgSenderIDs...)
+
 	userMap, err := s.userClient.EnrichUsers(ctx, userIDs)
 	if err != nil {
 		// log error but continue with empty map
@@ -174,17 +193,25 @@ func (s *ChatService) ListConversations(ctx context.Context, userID string, limi
 			}
 		}
 
+		lastMessageSenderName := ""
+		if u, ok := userMap[r.LastMessageSenderID.String]; ok {
+			lastMessageSenderName = u.Name
+		}
+
 		result = append(result, ConversationSummary{
-			ID:                  r.ID,
-			Name:                name,
-			Avatar:              avatar,
-			IsGroup:             r.IsGroup.Bool,
-			LastMessageID:       r.LastMessageID.Int64,
-			LastMessageAt:       r.LastMessageAt,
-			LastMessageContent:  r.LastMessageContent.String,
-			LastMessageSenderID: r.LastMessageSenderID.String,
-			LastReadMessageID:   r.LastReadMessageID.Int64,
-			UnreadCount:         r.UnreadCount,
+			ID:                    r.ID,
+			Name:                  name,
+			Avatar:                avatar,
+			IsGroup:               r.IsGroup.Bool,
+			LastMessageID:         r.LastMessageID.Int64,
+			LastMessageAt:         r.LastMessageAt,
+			LastMessageContent:    r.LastMessageContent.String,
+			LastMessageSenderID:   r.LastMessageSenderID.String,
+			LastMessageSenderName: lastMessageSenderName,
+			LastReadMessageID:     r.LastReadMessageID.Int64,
+			LastMessageType:       r.LastMessageType.String,
+			LastMessageFileName:   r.LastMessageFileName.String,
+			UnreadCount:           r.UnreadCount,
 		})
 	}
 
@@ -305,14 +332,26 @@ func (s *ChatService) GetConversation(ctx context.Context, conversationID int64)
 		finalMessages[i] = res
 	}
 
+	lastMessageSenderName := ""
+	if u, ok := userMap[conv.LastMessageSenderID.String]; ok {
+		lastMessageSenderName = u.Name
+	}
+
 	return &ConversationDetail{
-		ID:        conv.ID,
-		Name:      name,
-		Avatar:    avatar,
-		IsGroup:   conv.IsGroup.Bool,
-		Members:   members,
-		Messages:  finalMessages,
-		CreatedAt: conv.CreatedAt,
-		UpdatedAt: conv.UpdatedAt,
+		ID:                    conv.ID,
+		Name:                  name,
+		Avatar:                avatar,
+		IsGroup:               conv.IsGroup.Bool,
+		Members:               members,
+		Messages:              finalMessages,
+		LastMessageID:         conv.LastMessageID.Int64,
+		LastMessageAt:         conv.LastMessageAt,
+		LastMessageContent:    conv.LastMessageContent.String,
+		LastMessageSenderID:   conv.LastMessageSenderID.String,
+		LastMessageSenderName: lastMessageSenderName,
+		LastMessageType:       conv.LastMessageType.String,
+		LastMessageFileName:   conv.LastMessageFileName.String,
+		CreatedAt:             conv.CreatedAt,
+		UpdatedAt:             conv.UpdatedAt,
 	}, nil
 }

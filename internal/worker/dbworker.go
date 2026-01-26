@@ -49,13 +49,24 @@ func StartDBWorker(cfg *config.Config, q *db.Queries) {
 			FileType: pgtype.Text{String: msg.FileType, Valid: msg.FileType != ""},
 			FileSize: pgtype.Int8{Int64: msg.FileSize, Valid: msg.FileSize > 0},
 
-			ReplyToID: pgtype.Int8{Valid: false},
+			ReplyToID:   pgtype.Int8{Valid: false},
+			ClientMsgID: pgtype.Text{String: msg.ClientMsgID, Valid: msg.ClientMsgID != ""},
 		}
 
 		insertedMsg, err := q.CreateMessage(context.Background(), params)
 		if err != nil {
 			log.Printf("DB Save Error (Conv %d, Sender %s): %v", msg.ConversationID, msg.SenderID, err)
 			continue
+		}
+
+		// Update conversation last message metadata
+		err = q.UpdateConversationLastMessage(context.Background(), db.UpdateConversationLastMessageParams{
+			ID:            msg.ConversationID,
+			LastMessageID: pgtype.Int8{Int64: insertedMsg.ID, Valid: true},
+			LastMessageAt: insertedMsg.CreatedAt,
+		})
+		if err != nil {
+			log.Printf("DB Update Conv Error (Conv %d): %v", msg.ConversationID, err)
 		}
 
 		log.Printf("Successfully Persisted: ID=%d | Type=%s | From=%s | Conv=%d",

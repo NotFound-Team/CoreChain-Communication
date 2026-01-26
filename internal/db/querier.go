@@ -19,7 +19,7 @@ type Querier interface {
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
 	EndMeeting(ctx context.Context, arg EndMeetingParams) (Meeting, error)
 	GetActiveMeetingByKey(ctx context.Context, meetingKey string) (Meeting, error)
-	GetConversationByID(ctx context.Context, id int64) (Conversation, error)
+	GetConversationByID(ctx context.Context, id int64) (GetConversationByIDRow, error)
 	GetMeetingByID(ctx context.Context, id pgtype.UUID) (Meeting, error)
 	GetMeetingByRoomName(ctx context.Context, roomName string) (Meeting, error)
 	GetMeetingInvites(ctx context.Context, meetingID pgtype.UUID) ([]string, error)

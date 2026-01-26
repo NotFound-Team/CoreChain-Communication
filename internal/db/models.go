@@ -51,6 +51,7 @@ type Message struct {
 	FilePath       pgtype.Text      `json:"file_path"`
 	FileType       pgtype.Text      `json:"file_type"`
 	FileSize       pgtype.Int8      `json:"file_size"`
+	ClientMsgID    pgtype.Text      `json:"client_msg_id"`
 }
 
 type Participant struct {

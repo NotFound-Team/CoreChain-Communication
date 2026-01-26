@@ -15,10 +15,11 @@ import (
 
 type Message struct {
 	ID             int64  `json:"id,omitempty"`
-	TempID         string `json:"temp_id,omitempty"`
+	ClientMsgID    string `json:"client_msg_id,omitempty"`
 	Type           string `json:"type"`
 	ConversationID int64  `json:"conversation_id"`
 	SenderID       string `json:"sender_id"`
+	SenderName     string `json:"sender_name,omitempty"`
 	Content        string `json:"content"`
 
 	FileName string `json:"file_name,omitempty"`
@@ -146,6 +147,7 @@ func (h *Hub) sendToPushTopic(ctx context.Context, userID string, msg Message) {
 		"content":     msg.Content,
 		"type":        msg.Type,
 		"sender_id":   msg.SenderID,
+		"sender_name": msg.SenderName,
 	}
 	_ = broker.Get().PushEvent(ctx, config.Get().KafkaTopicNotification, userID, pushPayload)
 }

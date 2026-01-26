@@ -74,11 +74,12 @@ INSERT INTO messages (
     file_path, 
     file_type, 
     file_size,
-    reply_to_id
+    reply_to_id,
+    client_msg_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
-RETURNING id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at, file_name, file_id, file_path, file_type, file_size
+RETURNING id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at, file_name, file_id, file_path, file_type, file_size, client_msg_id
 `
 
 type CreateMessageParams struct {
@@ -91,6 +92,7 @@ type CreateMessageParams struct {
 	FileType       pgtype.Text `json:"file_type"`
 	FileSize       pgtype.Int8 `json:"file_size"`
 	ReplyToID      pgtype.Int8 `json:"reply_to_id"`
+	ClientMsgID    pgtype.Text `json:"client_msg_id"`
 }
 
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
@@ -104,6 +106,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.FileType,
 		arg.FileSize,
 		arg.ReplyToID,
+		arg.ClientMsgID,
 	)
 	var i Message
 	err := row.Scan(
@@ -120,18 +123,41 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.FilePath,
 		&i.FileType,
 		&i.FileSize,
+		&i.ClientMsgID,
 	)
 	return i, err
 }
 
 const getConversationByID = `-- name: GetConversationByID :one
-SELECT id, name, avatar, is_group, last_message_id, last_message_at, created_at, updated_at FROM conversations 
-WHERE id = $1 LIMIT 1
+SELECT 
+    c.id, c.name, c.avatar, c.is_group, c.last_message_id, c.last_message_at, c.created_at, c.updated_at, 
+    m.content as last_message_content,
+    m.sender_id as last_message_sender_id,
+    m.type as last_message_type,
+    m.file_name as last_message_file_name
+FROM conversations c
+LEFT JOIN messages m ON c.last_message_id = m.id
+WHERE c.id = $1 LIMIT 1
 `
 
-func (q *Queries) GetConversationByID(ctx context.Context, id int64) (Conversation, error) {
+type GetConversationByIDRow struct {
+	ID                  int64            `json:"id"`
+	Name                pgtype.Text      `json:"name"`
+	Avatar              pgtype.Text      `json:"avatar"`
+	IsGroup             pgtype.Bool      `json:"is_group"`
+	LastMessageID       pgtype.Int8      `json:"last_message_id"`
+	LastMessageAt       pgtype.Timestamp `json:"last_message_at"`
+	CreatedAt           pgtype.Timestamp `json:"created_at"`
+	UpdatedAt           pgtype.Timestamp `json:"updated_at"`
+	LastMessageContent  pgtype.Text      `json:"last_message_content"`
+	LastMessageSenderID pgtype.Text      `json:"last_message_sender_id"`
+	LastMessageType     pgtype.Text      `json:"last_message_type"`
+	LastMessageFileName pgtype.Text      `json:"last_message_file_name"`
+}
+
+func (q *Queries) GetConversationByID(ctx context.Context, id int64) (GetConversationByIDRow, error) {
 	row := q.db.QueryRow(ctx, getConversationByID, id)
-	var i Conversation
+	var i GetConversationByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -141,12 +167,16 @@ func (q *Queries) GetConversationByID(ctx context.Context, id int64) (Conversati
 		&i.LastMessageAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastMessageContent,
+		&i.LastMessageSenderID,
+		&i.LastMessageType,
+		&i.LastMessageFileName,
 	)
 	return i, err
 }
 
 const getMessagesByConversation = `-- name: GetMessagesByConversation :many
-SELECT id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at, file_name, file_id, file_path, file_type, file_size FROM messages
+SELECT id, conversation_id, sender_id, content, type, reply_to_id, is_deleted, created_at, file_name, file_id, file_path, file_type, file_size, client_msg_id FROM messages
 WHERE conversation_id = $1
 AND ($2::bigint = 0 OR id < $2)
 ORDER BY id DESC
@@ -182,6 +212,7 @@ func (q *Queries) GetMessagesByConversation(ctx context.Context, arg GetMessages
 			&i.FilePath,
 			&i.FileType,
 			&i.FileSize,
+			&i.ClientMsgID,
 		); err != nil {
 			return nil, err
 		}
@@ -226,6 +257,8 @@ SELECT
     c.last_message_at,
     m.content as last_message_content,
     m.sender_id as last_message_sender_id,
+    m.type as last_message_type,
+    m.file_name as last_message_file_name,
     p.last_read_message_id,
     (
         SELECT COUNT(m2.id) 
@@ -262,6 +295,8 @@ type ListConversationsByUserRow struct {
 	LastMessageAt       pgtype.Timestamp `json:"last_message_at"`
 	LastMessageContent  pgtype.Text      `json:"last_message_content"`
 	LastMessageSenderID pgtype.Text      `json:"last_message_sender_id"`
+	LastMessageType     pgtype.Text      `json:"last_message_type"`
+	LastMessageFileName pgtype.Text      `json:"last_message_file_name"`
 	LastReadMessageID   pgtype.Int8      `json:"last_read_message_id"`
 	UnreadCount         int64            `json:"unread_count"`
 	ParticipantIds      []string         `json:"participant_ids"`
@@ -285,6 +320,8 @@ func (q *Queries) ListConversationsByUser(ctx context.Context, arg ListConversat
 			&i.LastMessageAt,
 			&i.LastMessageContent,
 			&i.LastMessageSenderID,
+			&i.LastMessageType,
+			&i.LastMessageFileName,
 			&i.LastReadMessageID,
 			&i.UnreadCount,
 			&i.ParticipantIds,

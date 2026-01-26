@@ -9,8 +9,15 @@ INSERT INTO conversations (
 ) RETURNING *;
 
 -- name: GetConversationByID :one
-SELECT * FROM conversations 
-WHERE id = $1 LIMIT 1;
+SELECT 
+    c.*, 
+    m.content as last_message_content,
+    m.sender_id as last_message_sender_id,
+    m.type as last_message_type,
+    m.file_name as last_message_file_name
+FROM conversations c
+LEFT JOIN messages m ON c.last_message_id = m.id
+WHERE c.id = $1 LIMIT 1;
 
 -- name: UpdateConversationLastMessage :exec
 UPDATE conversations
@@ -57,9 +64,10 @@ INSERT INTO messages (
     file_path, 
     file_type, 
     file_size,
-    reply_to_id
+    reply_to_id,
+    client_msg_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
 RETURNING *;
 
@@ -85,6 +93,8 @@ SELECT
     c.last_message_at,
     m.content as last_message_content,
     m.sender_id as last_message_sender_id,
+    m.type as last_message_type,
+    m.file_name as last_message_file_name,
     p.last_read_message_id,
     (
         SELECT COUNT(m2.id) 

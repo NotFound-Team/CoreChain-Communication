@@ -118,7 +118,6 @@ services:
       - redis
     volumes:
       - .:/app
-    command: ["./main"]
 
 volumes:
   postgres_data:
