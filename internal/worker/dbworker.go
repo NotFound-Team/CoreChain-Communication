@@ -37,6 +37,21 @@ func StartDBWorker(cfg *config.Config, q *db.Queries) {
 			log.Printf("Failed to decode message: %v", err)
 			continue
 		}
+		log.Printf("Received message type: %v", msg.Type)
+		if msg.Type == "mark_as_read" {
+			err := q.MarkMessageAsRead(context.Background(), db.MarkMessageAsReadParams{
+				ConversationID:    msg.ConversationID,
+				UserID:            msg.SenderID,
+				LastReadMessageID: pgtype.Int8{Int64: msg.LastReadMessageID, Valid: msg.LastReadMessageID > 0},
+			})
+			if err != nil {
+				log.Printf("DB MarkRead Error (Conv %d, User %s): %v", msg.ConversationID, msg.SenderID, err)
+			} else {
+				log.Printf("Successfully MarkRead: User=%s | Conv=%d | MsgID=%d",
+					msg.SenderID, msg.ConversationID, msg.LastReadMessageID)
+			}
+			continue
+		}
 
 		params := db.CreateMessageParams{
 			ConversationID: msg.ConversationID,

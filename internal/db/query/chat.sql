@@ -131,3 +131,12 @@ UPDATE participants
 SET last_read_message_id = $3
 WHERE conversation_id = $1 AND user_id = $2;
 
+
+-- name: GetTotalUnreadCount :one
+SELECT COUNT(m.id)
+FROM messages m
+INNER JOIN participants p ON m.conversation_id = p.conversation_id
+WHERE p.user_id = $1 
+  AND m.id > COALESCE(p.last_read_message_id, 0)
+  AND m.sender_id != $1;
+

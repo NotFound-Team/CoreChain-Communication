@@ -247,6 +247,22 @@ func (q *Queries) GetPrivateConversation(ctx context.Context, arg GetPrivateConv
 	return conversation_id, err
 }
 
+const getTotalUnreadCount = `-- name: GetTotalUnreadCount :one
+SELECT COUNT(m.id)
+FROM messages m
+INNER JOIN participants p ON m.conversation_id = p.conversation_id
+WHERE p.user_id = $1 
+  AND m.id > COALESCE(p.last_read_message_id, 0)
+  AND m.sender_id != $1
+`
+
+func (q *Queries) GetTotalUnreadCount(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRow(ctx, getTotalUnreadCount, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const listConversationsByUser = `-- name: ListConversationsByUser :many
 SELECT 
     c.id, 

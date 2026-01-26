@@ -30,6 +30,8 @@ type Message struct {
 	FileSize int64  `json:"file_size,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
+
+	LastReadMessageID int64 `json:"last_read_message_id,omitempty"`
 }
 
 type Hub struct {
@@ -91,7 +93,9 @@ func (h *Hub) handleMessageDelivery(rawData []byte) {
 		log.Printf("Pushed message to Kafka persistence: %s", msg.Content)
 	}
 
-	if msg.Type == "file" && msg.FilePath != "" {
+	if msg.Type == "mark_as_read" {
+		log.Printf("Received mark_as_read for Conv %d from %s", msg.ConversationID, msg.SenderID)
+	} else if msg.Type == "file" && msg.FilePath != "" {
 		signedURL, err := storage.GetPresignedURL(msg.FilePath)
 		if err == nil {
 			msg.FileURL = signedURL

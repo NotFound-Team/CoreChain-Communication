@@ -25,6 +25,7 @@ type Querier interface {
 	GetMeetingInvites(ctx context.Context, meetingID pgtype.UUID) ([]string, error)
 	GetMessagesByConversation(ctx context.Context, arg GetMessagesByConversationParams) ([]Message, error)
 	GetPrivateConversation(ctx context.Context, arg GetPrivateConversationParams) (int64, error)
+	GetTotalUnreadCount(ctx context.Context, userID string) (int64, error)
 	ListConversationsByUser(ctx context.Context, arg ListConversationsByUserParams) ([]ListConversationsByUserRow, error)
 	ListMeetingsForUser(ctx context.Context, userID string) ([]Meeting, error)
 	ListMyMeetings(ctx context.Context, userID string) ([]Meeting, error)

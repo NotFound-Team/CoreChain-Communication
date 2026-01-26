@@ -59,6 +59,7 @@ func main() {
 
 	mux.HandleFunc("/conversations/private", middleware.WithAuth(chatHandler.HandleGetOrCreatePrivateConv))
 	mux.HandleFunc("/conversations/detail", middleware.WithAuth(chatHandler.HandleGetConversation))
+	mux.HandleFunc("/conversations/unread-count", middleware.WithAuth(chatHandler.HandleGetUnreadCount))
 	mux.HandleFunc("/conversations", middleware.WithAuth(chatHandler.HandleListConversations))
 
 	mux.HandleFunc("/messages", middleware.WithAuth(chatHandler.HandleGetMessages))

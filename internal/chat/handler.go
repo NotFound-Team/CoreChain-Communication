@@ -173,6 +173,20 @@ func (h *Handler) HandleGetConversation(w http.ResponseWriter, r *http.Request) 
 	jsonResponse(w, convDetail)
 }
 
+// GET /conversations/unread-count
+func (h *Handler) HandleGetUnreadCount(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+
+	count, err := h.service.GetTotalUnreadCount(r.Context(), userID)
+	if err != nil {
+		log.Printf("Error fetching unread count: %v", err)
+		http.Error(w, "Failed to fetch unread count", http.StatusInternalServerError)
+		return
+	}
+
+	jsonResponse(w, map[string]int64{"total_unread_count": count})
+}
+
 // =======================
 // Helpers
 // =======================

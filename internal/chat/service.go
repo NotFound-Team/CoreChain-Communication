@@ -355,3 +355,6 @@ func (s *ChatService) GetConversation(ctx context.Context, conversationID int64)
 		UpdatedAt:             conv.UpdatedAt,
 	}, nil
 }
+func (s *ChatService) GetTotalUnreadCount(ctx context.Context, userID string) (int64, error) {
+	return s.queries.GetTotalUnreadCount(ctx, userID)
+}
