@@ -130,7 +130,10 @@ services:
 
   # --- COMMUNICATION ---
   communication:
-    image: trandinh0506/corechain-communication:v1.0.1
+    # image: trandinh0506/corechain-communication:v1.0.1
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: corechain-communication
     ports:
       - "8989:8989"

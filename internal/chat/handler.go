@@ -135,9 +135,12 @@ func (h *Handler) HandleGetMessages(w http.ResponseWriter, r *http.Request) {
 	convIDStr := r.URL.Query().Get("conversation_id")
 	convID, _ := strconv.ParseInt(convIDStr, 10, 64)
 
-	limit := parseQueryInt(r, "limit", 50)
+	beforeIDStr := r.URL.Query().Get("before_id")
+	beforeID, _ := strconv.ParseInt(beforeIDStr, 10, 64)
 
-	msgs, err := h.service.GetMessages(r.Context(), convID, int32(limit), 0)
+	limit := parseQueryInt(r, "limit", 20)
+
+	msgs, err := h.service.GetMessages(r.Context(), convID, int32(limit), beforeID)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
 		return
