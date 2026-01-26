@@ -107,7 +107,7 @@ func (s *MeetingService) JoinMeeting(ctx context.Context, userID, userName, room
 	}
 
 	isHost := (meeting.HostID == userID)
-	now := time.Now()
+	now := time.Now().UTC()
 
 	if !isHost {
 		if now.Before(meeting.StartTime.Time) {

@@ -44,7 +44,7 @@ func (h *MeetingHandler) CreateMeeting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scheduledTime := time.Now()
+	scheduledTime := time.Now().UTC()
 	if req.StartTime != nil {
 		scheduledTime = *req.StartTime
 	}

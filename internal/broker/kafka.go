@@ -53,7 +53,7 @@ func (p *KafkaProducer) PushEvent(ctx context.Context, topic, key string, payloa
 		Topic: topic,
 		Key:   []byte(key),
 		Value: value,
-		Time:  time.Now(),
+		Time:  time.Now().UTC(),
 	})
 
 	if err != nil {
